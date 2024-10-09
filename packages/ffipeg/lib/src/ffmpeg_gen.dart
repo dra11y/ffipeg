@@ -1,6 +1,7 @@
 class FFmpegGen {
   const FFmpegGen({
     this.headerPaths = const [],
+    this.llvmPaths = const [],
     this.libraries = FFmpegLibrary.values,
     this.excludeAllByDefault = false,
     this.functions = const FFIncludeAll(),
@@ -9,7 +10,6 @@ class FFmpegGen {
     this.globals = const FFIncludeAll(),
     this.typedefs = const FFIncludeAll(),
     this.className = 'FFmpeg',
-    this.libclangDylib,
     this.excludeHeaders = defaultExcludeHeaders,
   });
 
@@ -54,9 +54,12 @@ class FFmpegGen {
   /// Defaults to `FFmpeg`.
   final String className;
 
-  /// Path to the clang library.
-  /// Default: `null` (autodetect).
-  final String? libclangDylib;
+  /// Path(s) to llvm folder(s) (same as `llvm-path` in ffigen config).
+  /// From ffigen docs: ffigen will sequentially search for
+  /// `lib/libclang.so` on linux, `lib/libclang.dylib` on macOs and `bin\libclang.dll` on windows, in the specified paths.
+  /// Complete path to the dynamic library can also be supplied.
+  /// Required if ffigen is unable to find this at default locations.
+  final List<String> llvmPaths;
 
   /// Header files to exclude.
   /// Default: `defaultExcludeHeaders`.

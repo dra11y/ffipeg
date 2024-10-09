@@ -35,6 +35,7 @@ class FFmpegConfigBuilder extends Builder {
     }
 
     final headerPaths = annotation.getStringList('headerPaths');
+    final llvmPaths = annotation.getStringList('llvmPaths');
     final libraries = annotation.getEnumList('libraries', FFmpegLibrary.values);
     final excludeAllByDefault = annotation.getBoolValue('excludeAllByDefault')!;
     final functions = annotation.getIncludeExclude('functions');
@@ -43,7 +44,6 @@ class FFmpegConfigBuilder extends Builder {
     final globals = annotation.getIncludeExclude('globals');
     final typedefs = annotation.getIncludeExclude('typedefs');
     final className = annotation.getStringValue('className')!;
-    final libclangDylib = annotation.getStringValue('libclangDylib');
     final excludeHeaders = annotation.getStringList('excludeHeaders');
 
     final (includePath, headers) =
@@ -54,7 +54,7 @@ class FFmpegConfigBuilder extends Builder {
       'preamble': '''
         // ignore_for_file: type=lint, doc_directive_unknown, unused_field, unused_element
       ''',
-      'llvm-path': ['/Library/Developer/CommandLineTools/usr/lib/'],
+      'llvm-path': llvmPaths,
       'name': className,
       'compiler-opts': ['-I$includePath'],
       'headers': {
@@ -66,7 +66,6 @@ class FFmpegConfigBuilder extends Builder {
       'enums': _includeExclude(enums),
       'globals': _includeExclude(globals),
       'typedefs': _includeExclude(typedefs),
-      if (libclangDylib != null) 'libclangDylib': libclangDylib,
     };
 
     final data = json.encode(configMap);
