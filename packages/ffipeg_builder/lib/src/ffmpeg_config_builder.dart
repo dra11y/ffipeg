@@ -81,7 +81,7 @@ class FFmpegConfigBuilder extends Builder {
     };
   }
 
-  /// Searches for FFmpeg headers in the provided searchPaths.
+  /// Searches for FFmpeg headers in the provided headerPaths.
   /// Returns a list of all *.h file paths found within the `lib*` subdirectories.
   Future<(String, List<String>)> _searchForFFmpegHeaders(
     List<String> headerPaths,
@@ -100,12 +100,11 @@ class FFmpegConfigBuilder extends Builder {
       if (Directory(headerPath).existsSync()) {
         final foundHeaders = <String>[];
 
-        // Iterate over each FFmpegLibrary to find headers in their respective subfolders
+        // Find headers for each FFmpeg library
         for (final lib in libraries) {
           final libDir = '$headerPath/${lib.dir}';
 
           if (Directory(libDir).existsSync()) {
-            // Glob all *.h files in the libDir folder
             final headerFiles =
                 Glob('$libDir/*.h').listSync().whereType<File>();
 
@@ -117,14 +116,12 @@ class FFmpegConfigBuilder extends Builder {
           }
         }
 
-        // If headers were found, return the list
         if (foundHeaders.isNotEmpty) {
           return (headerPath, foundHeaders);
         }
       }
     }
 
-    // Throw an exception if no headers are found
     throw Exception(
         'FFmpeg headers not found in any of the provided search paths: $headerPaths');
   }
