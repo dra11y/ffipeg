@@ -9,10 +9,8 @@ environment:
 # Add regular dependencies here.
 dependencies:
   ffipeg:
-    path: ../
 
 dev_dependencies:
   build_runner: ^2.4.13
   ffipeg_builder:
-    path: ../../ffipeg_builder
   lints: ^5.0.0

@@ -1,0 +1,20 @@
+name: ffipeg_dart
+
+repository: https://github.com/dra11y/ffipeg-dart
+
+packages:
+  - packages/ffipeg
+  - packages/ffipeg_builder
+  - packages/example
+
+scripts:
+  analyze:
+    exec: dart analyze .
+  fix:
+    exec: dart fix --apply
+  format:
+    exec: dart format .
+
+ide:
+  intellij:
+    enabled: false

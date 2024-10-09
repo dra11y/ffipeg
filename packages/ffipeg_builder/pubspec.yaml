@@ -7,12 +7,11 @@ environment:
   sdk: ^3.5.3
 
 dependencies:
-  analyzer: ^6.8.0 # > 6.9 requires macros
+  analyzer: ^6.8.0 # > 6.9 requires main channel/macros
   build: ^2.4.1
   ffi: ^2.1.3
   ffigen: ^14.0.1
   ffipeg:
-    path: ../ffipeg
   glob: ^2.1.2
   lints: ^5.0.0
   logging: ^1.2.0
