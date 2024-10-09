@@ -1,7 +1,16 @@
 builders:
-  ffmpeg_builder:
+  ffmpeg_config_builder:
     import: "package:ffipeg_builder/ffipeg_builder.dart"
-    builder_factories: ["ffmpegBuilderFactory"]
-    build_extensions: {".dart": [".g.dart"]}
+    builder_factories: ["ffmpegConfigBuilderFactory"]
+    build_extensions: {".dart": [".ffipeg.json"]}
+    runs_before: ["ffmpeg_ffigen_builder"]
+    auto_apply: dependents
+    build_to: cache
+
+  ffmpeg_ffigen_builder:
+    import: "package:ffipeg_builder/ffipeg_builder.dart"
+    builder_factories: ["ffmpegFfiGenBuilderFactory"]
+    build_extensions: {".ffipeg.json": [".ffipeg.dart"]}
+    required_inputs: [".ffipeg.json"]
     auto_apply: dependents
     build_to: source

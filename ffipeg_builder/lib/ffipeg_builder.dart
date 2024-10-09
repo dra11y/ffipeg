@@ -2,7 +2,11 @@ library;
 
 import 'package:build/build.dart';
 
-import 'src/ffmpeg_builder.dart';
+import 'src/ffmpeg_config_builder.dart';
+import 'src/ffmpeg_ffigen_builder.dart';
 
-FFmpegBuilder ffmpegBuilderFactory(BuilderOptions options) =>
-    FFmpegBuilder(options);
+FFmpegFfiGenBuilder ffmpegFfiGenBuilderFactory(BuilderOptions options) =>
+    FFmpegFfiGenBuilder(options);
+
+FFmpegConfigBuilder ffmpegConfigBuilderFactory(BuilderOptions options) =>
+    FFmpegConfigBuilder(options);

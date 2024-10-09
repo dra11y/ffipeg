@@ -6,8 +6,12 @@ extension DartObjectExtension on DartObject {
       .toListValue()!
       .map((e) => e.toStringValue()!)
       .toList();
+
   String? getStringValue(String fieldName) =>
       getField(fieldName)!.toStringValue();
+
+  bool? getBoolValue(String fieldName) => getField(fieldName)!.toBoolValue();
+
   List<T> getEnumList<T>(String fieldName, List<T> values) =>
       getField(fieldName)!
           .toListValue()!
