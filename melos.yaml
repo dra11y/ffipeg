@@ -5,7 +5,7 @@ repository: https://github.com/dra11y/ffipeg-dart
 packages:
   - packages/ffipeg
   - packages/ffipeg_builder
-  - packages/example
+  - packages/ffipeg_muxer
 
 scripts:
   analyze:

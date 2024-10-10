@@ -10,7 +10,7 @@ builders:
   ffmpeg_ffigen_builder:
     import: "package:ffipeg_builder/ffipeg_builder.dart"
     builder_factories: ["ffmpegFfiGenBuilderFactory"]
-    build_extensions: {".ffipeg.json": [".ffipeg.dart"]}
     required_inputs: [".ffipeg.json"]
+    build_extensions: {".ffipeg.json": [".ffipeg.dart"]}
     auto_apply: dependents
     build_to: source

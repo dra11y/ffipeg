@@ -1,14 +1,17 @@
 class FFmpegGen {
   const FFmpegGen({
-    this.headerPaths = const [],
-    this.llvmPaths = const [],
-    this.libraries = FFmpegLibrary.values,
+    this.headerPaths = const {},
+    this.llvmPaths = const {},
+    this.libraries = const {...FFmpegLibrary.values},
     this.excludeAllByDefault = false,
-    this.functions = const FFIncludeAll(),
-    this.structs = const FFIncludeAll(),
-    this.enums = const FFIncludeAll(),
-    this.globals = const FFIncludeAll(),
-    this.typedefs = const FFIncludeAll(),
+    this.functions = ffAllowAll,
+    this.structs = ffAllowAll,
+    this.enums = ffAllowAll,
+    this.unnamedEnums = ffAllowAll,
+    this.unions = ffAllowAll,
+    this.globals = ffAllowAll,
+    this.macros = ffAllowAll,
+    this.typedefs = ffAllowAll,
     this.className = 'FFmpeg',
     this.excludeHeaders = defaultExcludeHeaders,
   });
@@ -18,11 +21,11 @@ class FFmpegGen {
   /// These should end in `include` and are searched in the order provided.
   /// The first successful one will be used. Errors ignored unless all fail.
   /// Example: `['/opt/homebrew/opt/ffmpeg/include', 'C:\FFmpeg\include']`
-  final List<String> headerPaths;
+  final Set<String> headerPaths;
 
   /// Which FFmpeg libraries to generate bindings for. Default: all.
   /// Recommendation: generate only the libraries you need.
-  final List<FFmpegLibrary> libraries;
+  final Set<FFmpegLibrary> libraries;
 
   /// If true, excludes everything by default (`FFIncludeAll()` will not work
   /// on the other options; you must explicitly include items you need using
@@ -42,9 +45,21 @@ class FFmpegGen {
   /// Recommendation: use `FFInclude` to allow-list only the ones you need.
   final FFIncludeExclude enums;
 
+  /// Include or Exclude specific unnamed enums by regex pattern. Default: `FFIncludeAll()`.
+  /// Recommendation: use `FFInclude` to allow-list only the ones you need.
+  final FFIncludeExclude unnamedEnums;
+
+  /// Include or Exclude specific unions by regex pattern. Default: `FFIncludeAll()`.
+  /// Recommendation: use `FFInclude` to allow-list only the ones you need.
+  final FFIncludeExclude unions;
+
   /// Include or Exclude specific globals by regex pattern. Default: `FFIncludeAll()`.
   /// Recommendation: use `FFInclude` to allow-list only the ones you need.
   final FFIncludeExclude globals;
+
+  /// Include or Exclude specific macros by regex pattern. Default: `FFIncludeAll()`.
+  /// Recommendation: use `FFInclude` to allow-list only the ones you need.
+  final FFIncludeExclude macros;
 
   /// Include or Exclude specific typedefs by regex pattern. Default: `FFIncludeAll()`.
   /// Recommendation: use `FFInclude` to allow-list only the ones you need.
@@ -59,11 +74,11 @@ class FFmpegGen {
   /// `lib/libclang.so` on linux, `lib/libclang.dylib` on macOs and `bin\libclang.dll` on windows, in the specified paths.
   /// Complete path to the dynamic library can also be supplied.
   /// Required if ffigen is unable to find this at default locations.
-  final List<String> llvmPaths;
+  final Set<String> llvmPaths;
 
   /// Header files to exclude.
   /// Default: `defaultExcludeHeaders`.
-  final List<String> excludeHeaders;
+  final Set<String> excludeHeaders;
 }
 
 enum FFmpegLibrary {
@@ -90,7 +105,7 @@ enum FFmpegLibrary {
       };
 }
 
-const defaultExcludeHeaders = <String>[
+const defaultExcludeHeaders = <String>{
   'libavcodec/d3d11va.h',
   'libavcodec/dxva2.h',
   'libavcodec/qsv.h',
@@ -109,28 +124,32 @@ const defaultExcludeHeaders = <String>[
   'libavutil/hwcontext_vdpau.h',
   'libavutil/hwcontext_videotoolbox.h',
   'libavutil/hwcontext_vulkan.h',
-];
+};
 
 sealed class FFIncludeExclude {
   const FFIncludeExclude();
 }
 
-class FFInclude extends FFIncludeExclude {
+base class FFInclude extends FFIncludeExclude {
   const FFInclude(this.include);
 
-  final List<String> include;
+  final Set<String> include;
 }
 
-class FFIncludeAll extends FFExclude {
-  const FFIncludeAll() : super(const []);
-}
-
-class FFExcludeAll extends FFInclude {
-  const FFExcludeAll() : super(const []);
-}
-
-class FFExclude extends FFIncludeExclude {
+base class FFExclude extends FFIncludeExclude {
   const FFExclude(this.exclude);
 
-  final List<String> exclude;
+  final Set<String> exclude;
 }
+
+final class FFAllowAll extends FFExclude {
+  const FFAllowAll() : super(const {});
+}
+
+const ffAllowAll = FFAllowAll();
+
+final class FFDenyAll extends FFInclude {
+  const FFDenyAll() : super(const {});
+}
+
+const ffDenyAll = FFDenyAll();
