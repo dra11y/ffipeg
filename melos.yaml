@@ -28,4 +28,5 @@ command:
         find . -name .DS_Store | xargs rm
   version:
     hooks:
-      preCommit: melos exec --scope=ffipeg_muxer "dart run build_runner build"
+      preCommit: |
+        melos exec --scope=ffipeg_muxer "dart run build_runner build"
