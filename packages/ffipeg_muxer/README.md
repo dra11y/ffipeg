@@ -28,7 +28,7 @@ void main() {
 
 ### Installation
 
-- Only this package is required, since bindings are already generated (`ffipeg` is a transitive dependency):
+- Only this package **and the ffmpeg binary** are required, since bindings are already generated (`ffipeg` is a transitive dependency):
 ```
 dart pub add ffipeg_muxer
 ```
