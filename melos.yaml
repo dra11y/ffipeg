@@ -14,3 +14,8 @@ scripts:
 ide:
   intellij:
     enabled: false
+
+command:
+  publish:
+    hooks:
+      pre: melos exec --scope=ffipeg_muxer "dart run build_runner build"
