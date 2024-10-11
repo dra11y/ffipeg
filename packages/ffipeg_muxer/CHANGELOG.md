@@ -1,3 +1,7 @@
+## 0.1.1+6
+
+ - Update a dependency to the latest release.
+
 ## 0.1.1+5
 
  - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))

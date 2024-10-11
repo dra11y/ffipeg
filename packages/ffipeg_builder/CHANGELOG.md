@@ -1,3 +1,7 @@
+## 0.1.1+4
+
+ - **FIX**: add result types to example. ([a4a0ea8a](https://github.com/dra11y/ffipeg-dart/commit/a4a0ea8a6d5a439bc3faeb4b8ef52e2d2fd634af))
+
 ## 0.1.1+3
 
  - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))

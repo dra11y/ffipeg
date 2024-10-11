@@ -1,6 +1,6 @@
 name: ffipeg
 description: Generate Dart FFI bindings to FFmpeg with a simple library annotation.
-version: 0.1.1+3
+version: 0.1.1+4
 repository: https://github.com/dra11y/ffipeg-dart
 
 environment:
