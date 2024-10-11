@@ -1,3 +1,7 @@
+## 0.1.1+3
+
+ - Update a dependency to the latest release.
+
 ## 0.1.1+2
 
  - patch: remove unused AVERROR_ constants; add logging for pts == AV_NOPTS_VALUE
