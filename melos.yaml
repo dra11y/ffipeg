@@ -22,7 +22,11 @@ ide:
 command:
   publish:
     hooks:
-      pre: melos exec --scope=ffipeg_muxer "dart run build_runner build"
+      pre: |
+        melos exec --scope=ffipeg_muxer "dart run build_runner build"
+        rm -rf packages/ffipeg/example
+        cp -r packages/ffipeg_muxer packages/ffipeg/example
+        find . -name .DS_Store | xargs rm
   version:
     hooks:
       preCommit: melos exec --scope=ffipeg_muxer "dart run build_runner build"

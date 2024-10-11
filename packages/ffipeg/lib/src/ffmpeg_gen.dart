@@ -96,9 +96,15 @@ class FFmpegGen {
 
   /// Header files to exclude.
   /// Default: `defaultExcludeHeaders`.
+  /// You can augment `defaultExcludeHeaders` with:
+  /// ```
+  /// @FFmpegGen(
+  ///  excludeHeaders: { ...defaultExcludeHeaders, 'libavcodec/your_header.h' }
+  /// )
   final Set<String> excludeHeaders;
 }
 
+/// List of FFmpeg libraries to generate bindings for.
 enum FFmpegLibrary {
   avCodec,
   avDevice,
@@ -109,8 +115,10 @@ enum FFmpegLibrary {
   swResample,
   swScale;
 
+  /// The lowercase subdirectory name for the library's headers.
   String get dir => 'lib${name.toLowerCase()}';
 
+  /// The generated Dart `ffi.Struct` subclass name for the library.
   String get genName => switch (this) {
         FFmpegLibrary.avCodec => 'AVCodec',
         FFmpegLibrary.avDevice => 'AVDevice',
@@ -123,6 +131,12 @@ enum FFmpegLibrary {
       };
 }
 
+/// These headers will cause ffigen to fail if included.
+/// You can augment them with:
+/// ```
+/// @FFmpegGen(
+///  excludeHeaders: { ...defaultExcludeHeaders, 'libavcodec/your_header.h' }
+/// )
 const defaultExcludeHeaders = <String>{
   'libavcodec/d3d11va.h',
   'libavcodec/dxva2.h',
@@ -144,30 +158,39 @@ const defaultExcludeHeaders = <String>{
   'libavutil/hwcontext_vulkan.h',
 };
 
+/// Sealed parent class for include/exclude directives.
 sealed class FFIncludeExclude {
   const FFIncludeExclude();
 }
 
+/// Include specific symbols of a type by pattern (refer to ffigen for supported patterns).
 base class FFInclude extends FFIncludeExclude {
   const FFInclude(this.include);
 
+  /// Set of symbols to explicitly include.
   final Set<String> include;
 }
 
+/// Exclude specific symbols of a type by pattern (refer to ffigen for supported patterns).
 base class FFExclude extends FFIncludeExclude {
   const FFExclude(this.exclude);
 
+  /// Set of symbols to explicitly exclude.
   final Set<String> exclude;
 }
 
+/// Allow all symbols of a type to be included (shorthand for `FFExclude({})`).
 final class FFAllowAll extends FFExclude {
   const FFAllowAll() : super(const {});
 }
 
+/// Allow all symbols of a type to be included (shorthand for `FFExclude({})`).
 const ffAllowAll = FFAllowAll();
 
+/// Exclude all symbols of a type (shorthand for `FFInclude({})`).
 final class FFDenyAll extends FFInclude {
   const FFDenyAll() : super(const {});
 }
 
+/// Exclude all symbols of a type (shorthand for `FFInclude({})`).
 const ffDenyAll = FFDenyAll();
