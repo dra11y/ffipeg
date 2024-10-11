@@ -92,7 +92,7 @@ dart pub add --dev build_runner
 - You will need to ensure the FFmpeg binary is available in your built Flutter app or Dart executable's path.
     - You may need a specific `Platform` switch to specify the path/name passed into the `DynamicLibrary()` constructor.
 
-Refer to the [`FFmpegGen` class source documentation](lib/src/ffmpeg_gen.dart) for specific usage of the annotation.
+Refer to the [`FFmpegGen` class source documentation](https://github.com/dra11y/ffipeg-dart/blob/main/packages/ffipeg/lib/src/ffmpeg_gen.dart) for specific usage of the annotation.
 
 Refer to the example code above to get started, or [`ffipeg_muxer`](https://pub.dev/packages/ffipeg_muxer) package for a working CLI/Dart class example demonstratng how to mux an audio and video file without transcoding (copies the codecs).
 

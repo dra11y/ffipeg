@@ -1,5 +1,11 @@
+/// Library annotation class for generating FFmpeg bindings.
+/// Annotate a library declaration with this class to generate FFmpeg bindings.
+/// The resulting filename is the library filename with its extension
+/// changed to '.ffipeg.dart'. It is not a part file; therefore,
+/// to import it, use a standard `import` declaration.
 class FFmpegGen {
   const FFmpegGen({
+    this.versionSpec,
     this.headerPaths = const {},
     this.llvmPaths = const {},
     this.libraries = const {...FFmpegLibrary.values},
@@ -15,6 +21,18 @@ class FFmpegGen {
     this.className = 'FFmpeg',
     this.excludeHeaders = defaultExcludeHeaders,
   });
+
+  /// The (optional) FFmpeg version specifier to generate bindings for.
+  /// e.g. "7.1", ">=7.1", ">=7.1 <8.0"
+  /// respectively: 7.1 exactly, 7.1 and up, or 7.1 up to excluding 8.0.
+  /// If null, the first headers found recursively in `headerPaths`
+  /// will be used, ordered by:
+  ///   - parent directory named "current"
+  ///   - parent directory with highest name in lexical order.
+  /// If not null, the `headerPaths` will be searched for FFmpeg headers
+  /// with the given version, and the search will fail
+  /// if a matching version of headers is not found.
+  final String? versionSpec;
 
   /// Absolute paths to search for the FFmpeg headers.
   /// If empty, the bundled headers will be used.

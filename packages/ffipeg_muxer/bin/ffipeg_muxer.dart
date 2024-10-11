@@ -128,7 +128,16 @@ void main(List<String> arguments) {
       print('${record.level.name}: ${record.message}');
     });
 
+    Logger.root.info('Loading FFmpeg from: $ffmpegPath ...');
+
     final muxer = Muxer(DynamicLibrary.open(ffmpegPath));
+
+    if (Logger.root.level >= Level.INFO) {
+      final version = muxer.getFFmpegVersion();
+      Logger.root.info('FFmpeg version: $version');
+    }
+
+    final start = DateTime.now();
 
     final result = muxer.run(
       videoFile: videoFile,
@@ -138,9 +147,17 @@ void main(List<String> arguments) {
       overwrite: overwrite,
     );
 
+    final end = DateTime.now();
+    final diff = end.difference(start);
+    final diffDesc = diff.inSeconds > 300
+        ? '${diff.inMinutes} min'
+        : diff.inMilliseconds > 1000
+            ? '${diff.inSeconds} s'
+            : '${diff.inMilliseconds} ms';
+
     switch (result) {
       case MuxerOK():
-        print('Successfully muxed files to: $outputFile');
+        print('Successfully muxed files in $diffDesc to: $outputFile');
         break;
       case MuxerError():
         throw result;

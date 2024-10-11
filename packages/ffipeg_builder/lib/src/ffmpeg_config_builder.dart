@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'package:build/build.dart';
 import 'package:ffipeg/ffipeg.dart';
 import 'package:ffipeg_builder/src/constants.dart';
+import 'package:ffipeg_builder/src/version_spec.dart';
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
 import 'package:path/path.dart' as path;
@@ -24,7 +25,6 @@ class FFmpegConfigBuilder extends Builder {
 
   @override
   Future<void> build(BuildStep buildStep) async {
-    print('BUILDSTEP INPUT ID: ${buildStep.inputId}');
     if (!await buildStep.resolver.isLibrary(buildStep.inputId)) {
       return;
     }
@@ -39,12 +39,14 @@ class FFmpegConfigBuilder extends Builder {
       final dartOutputId = buildStep.inputId.changeExtension(outputExtension);
       final file = File(dartOutputId.path);
       if (await file.exists()) {
-        print('Annotation removed; deleting ${dartOutputId.path}...');
+        log.info('Annotation removed; deleting ${dartOutputId.path}...');
         await file.delete();
       }
       return;
     }
 
+    final versionSpec =
+        VersionSpecifier.parse(annotation.getStringValue('versionSpec'));
     final headerPaths = annotation.getStringSet('headerPaths');
     final llvmPaths = annotation.getStringSet('llvmPaths');
     final libraries = annotation.getEnumSet('libraries', FFmpegLibrary.values);
@@ -60,8 +62,13 @@ class FFmpegConfigBuilder extends Builder {
     final className = annotation.getStringValue('className')!;
     final excludeHeaders = annotation.getStringSet('excludeHeaders');
 
-    final (includePath, headers) =
-        await _searchForFFmpegHeaders(headerPaths, libraries, excludeHeaders);
+    final (:String parentPath, :Set<String> headers) =
+        await _searchForFFmpegHeaders(
+      versionSpec: versionSpec,
+      headerPaths: headerPaths,
+      libraries: libraries,
+      excludeHeaders: excludeHeaders,
+    );
 
     final configMap = <String, dynamic>{
       'silence-enum-warning': true,
@@ -70,7 +77,7 @@ class FFmpegConfigBuilder extends Builder {
       ''',
       'llvm-path': llvmPaths.toList(),
       'name': className,
-      'compiler-opts': ['-I$includePath'],
+      'compiler-opts': ['-I$parentPath'],
       'headers': {
         'entry-points': headers.toList(),
       },
@@ -87,7 +94,7 @@ class FFmpegConfigBuilder extends Builder {
 
     final data = json.encode(configMap);
 
-    print('WRITE CONFIG TO $outputId');
+    log.info('Writing config to $outputId');
 
     await buildStep.writeAsString(outputId, data);
   }
@@ -100,47 +107,123 @@ class FFmpegConfigBuilder extends Builder {
   }
 
   /// Searches for FFmpeg headers in the provided headerPaths.
-  /// Returns a list of all *.h file paths found within the `lib*` subdirectories.
-  Future<(String, Set<String>)> _searchForFFmpegHeaders(
-    Set<String> headerPaths,
-    Set<FFmpegLibrary> libraries,
-    Set<String> excludeHeaders,
-  ) async {
+  /// Returns a tuple of: (String parentPath, list of all *.h file paths
+  /// found within the `lib*` subdirectories.)
+  Future<({String parentPath, Set<String> headers})> _searchForFFmpegHeaders({
+    required VersionSpecifier? versionSpec,
+    required Set<String> headerPaths,
+    required Set<FFmpegLibrary> libraries,
+    required Set<String> excludeHeaders,
+  }) async {
     if (headerPaths.isEmpty) {
       final packageUri =
           await Isolate.resolvePackageUri(Uri.parse('package:ffipeg_builder/'));
-      final defaultSearchPath = path.join(
-          path.dirname(path.fromUri(packageUri)), 'ffmpeg-headers/current');
+      final defaultSearchPath =
+          path.join(path.dirname(path.fromUri(packageUri)), 'ffmpeg-headers');
       headerPaths.add(defaultSearchPath);
     }
 
+    String? versionMismatchError;
+    void versionMismatch(String message) {
+      versionMismatchError = message;
+      log.warning(message);
+    }
+
+    outerLoop:
     for (final headerPath in headerPaths) {
       if (Directory(headerPath).existsSync()) {
-        final foundHeaders = <String>{};
+        final headers = <String>{};
+
+        String? parentPath;
+        bool versionVerified = false;
 
         // Find headers for each FFmpeg library
         for (final lib in libraries) {
-          final libDir = '$headerPath/${lib.dir}';
+          // Search recursively for the `lib*` directories.
+          final libGlob = Glob('$headerPath/**/${lib.dir}');
+          // Take the first of:
+          // - the `current` directory, if it exists
+          // - the first directory when sorted in reverse order (highest version first)
+          final libDirs = libGlob.listSync().whereType<Directory>().toList()
+            ..sort((a, b) => b.path.compareTo(a.path));
 
-          if (Directory(libDir).existsSync()) {
-            final headerFiles =
-                Glob('$libDir/*.h').listSync().whereType<File>();
-
-            if (headerFiles.isNotEmpty) {
-              foundHeaders.addAll(headerFiles
-                  .map((file) => file.path)
-                  .where((p) => !excludeHeaders.any(p.endsWith)));
-            }
+          if (libDirs.isEmpty) {
+            continue outerLoop;
           }
+
+          if (!versionVerified && versionSpec != null) {
+            // Glob for ffversion.h file in the same directory as libDirs
+            final versionGlob =
+                Glob('${libDirs.first.parent.path}/libavutil/ffversion.h');
+            final versionFiles =
+                versionGlob.listSync().whereType<File>().toList();
+
+            if (versionFiles.isEmpty) {
+              versionMismatch(
+                  'FFmpeg version header not found in ${libDirs.first.parent.path}');
+              continue outerLoop;
+            }
+
+            // Parse ffversion.h and verify version
+            final versionFile = versionFiles.first;
+            final versionContent = await versionFile.readAsString();
+            final versionMatch = RegExp(r'#define FFMPEG_VERSION\s+"([^"]+)"')
+                .firstMatch(versionContent);
+
+            if (versionMatch == null) {
+              versionMismatch(
+                  'FFmpeg version not found in ${versionFile.path}');
+              continue outerLoop;
+            }
+
+            final ffmpegVersionString = versionMatch.group(1);
+            final ffmpegVersion = Version.parse(ffmpegVersionString!);
+
+            if (!versionSpec.allows(ffmpegVersion)) {
+              versionMismatch(
+                  'Specified FFmpeg version $versionSpec but found $ffmpegVersion in ${versionFile.path}.');
+              continue outerLoop;
+            }
+            versionVerified = true;
+            parentPath = libDirs.first.parent.path;
+          }
+
+          final libDir = libDirs
+                  .where((d) => d.uri.pathSegments.last == 'current')
+                  .firstOrNull ??
+              libDirs.firstOrNull;
+          if (libDir == null) {
+            // We didn't find this library's headers, so bail to the next entry in `headerPaths`.
+            continue outerLoop;
+          }
+
+          final headerFiles =
+              Glob('${libDir.path}/*.h').listSync().whereType<File>();
+
+          if (headerFiles.isEmpty) {
+            log.warning('No headers found for ${lib.dir} in ${libDir.path}');
+            continue outerLoop;
+          }
+
+          parentPath = libDir.parent.path;
+
+          final includedHeaders = headerFiles
+              .map((file) => file.path)
+              .where((p) => !excludeHeaders.any(p.endsWith));
+          headers.addAll(includedHeaders);
         }
 
-        if (foundHeaders.isNotEmpty) {
-          return (headerPath, foundHeaders);
+        if (headers.isNotEmpty && parentPath != null) {
+          return (parentPath: parentPath, headers: headers);
         }
       }
     }
 
-    throw Exception(
-        'FFmpeg headers not found in any of the provided search paths: $headerPaths');
+    throw Exception([
+      if (versionMismatchError != null)
+        'FFmpeg headers were found, but of the wrong version: $versionMismatchError'
+      else
+        'FFmpeg headers not found in any of the provided search paths: $headerPaths'
+    ].join());
   }
 }

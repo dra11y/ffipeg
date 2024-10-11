@@ -23,18 +23,14 @@ class FFmpegFfiGenBuilder extends Builder {
 
   @override
   Future<void> build(BuildStep buildStep) async {
-    print('RUNNING FFmpegFfiGenBuilder ON ${buildStep.inputId}');
-    if (!buildStep.inputId.path.endsWith(configExtension)) {
-      print('WRONG EXTENSION: ${buildStep.inputId.extension}');
-      return;
-    }
+    log.info('Running FFmpegFfiGenBuilder on ${buildStep.inputId}');
     final data = await buildStep.readAsString(buildStep.inputId);
     final Map<String, dynamic> configMap;
 
     try {
       configMap = json.decode(data);
     } catch (e) {
-      print('DELETE FILE');
+      log.severe('Failed to decode JSON data: $data');
       rethrow;
     }
 

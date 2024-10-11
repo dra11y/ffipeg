@@ -20,57 +20,47 @@ class FFmpeg {
           lookup)
       : _lookup = lookup;
 
-  /// Rescale a 64-bit integer by 2 rational numbers.
+  /// Return an informative version string. This usually is the actual release
+  /// version number or a git commit description. This string has no fixed format
+  /// and can change any time. It should never be parsed by code.
+  ffi.Pointer<ffi.Char> av_version_info() {
+    return _av_version_info();
+  }
+
+  late final _av_version_infoPtr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Char> Function()>>(
+          'av_version_info');
+  late final _av_version_info =
+      _av_version_infoPtr.asFunction<ffi.Pointer<ffi.Char> Function()>();
+
+  /// Put a description of the AVERROR code errnum in errbuf.
+  /// In case of failure the global variable errno is set to indicate the
+  /// error. Even in case of failure av_strerror() will print a generic
+  /// error message indicating the errnum provided to errbuf.
   ///
-  /// The operation is mathematically equivalent to `a * bq / cq`.
-  ///
-  /// This function is equivalent to av_rescale_q_rnd() with #AV_ROUND_NEAR_INF.
-  ///
-  /// @see av_rescale(), av_rescale_rnd(), av_rescale_q_rnd()
-  int av_rescale_q(
-    int a,
-    AVRational bq,
-    AVRational cq,
+  /// @param errnum      error code to describe
+  /// @param errbuf      buffer to which description is written
+  /// @param errbuf_size the size in bytes of errbuf
+  /// @return 0 on success, a negative value if a description for errnum
+  /// cannot be found
+  int av_strerror(
+    int errnum,
+    ffi.Pointer<ffi.Char> errbuf,
+    int errbuf_size,
   ) {
-    return _av_rescale_q(
-      a,
-      bq,
-      cq,
+    return _av_strerror(
+      errnum,
+      errbuf,
+      errbuf_size,
     );
   }
 
-  late final _av_rescale_qPtr = _lookup<
+  late final _av_strerrorPtr = _lookup<
       ffi.NativeFunction<
-          ffi.Int64 Function(
-              ffi.Int64, AVRational, AVRational)>>('av_rescale_q');
-  late final _av_rescale_q =
-      _av_rescale_qPtr.asFunction<int Function(int, AVRational, AVRational)>();
-
-  /// Rescale a 64-bit integer by 2 rational numbers with specified rounding.
-  ///
-  /// The operation is mathematically equivalent to `a * bq / cq`.
-  ///
-  /// @see av_rescale(), av_rescale_rnd(), av_rescale_q()
-  int av_rescale_q_rnd(
-    int a,
-    AVRational bq,
-    AVRational cq,
-    AVRounding rnd,
-  ) {
-    return _av_rescale_q_rnd(
-      a,
-      bq,
-      cq,
-      rnd.value,
-    );
-  }
-
-  late final _av_rescale_q_rndPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Int64 Function(ffi.Int64, AVRational, AVRational,
-              ffi.UnsignedInt)>>('av_rescale_q_rnd');
-  late final _av_rescale_q_rnd = _av_rescale_q_rndPtr
-      .asFunction<int Function(int, AVRational, AVRational, int)>();
+          ffi.Int Function(
+              ffi.Int, ffi.Pointer<ffi.Char>, ffi.Size)>>('av_strerror');
+  late final _av_strerror = _av_strerrorPtr
+      .asFunction<int Function(int, ffi.Pointer<ffi.Char>, int)>();
 
   /// Compare two timestamps each in its own time base.
   ///
@@ -160,26 +150,6 @@ class FFmpeg {
               ffi.Pointer<ffi.Pointer<AVPacket>>)>>('av_packet_free');
   late final _av_packet_free = _av_packet_freePtr
       .asFunction<void Function(ffi.Pointer<ffi.Pointer<AVPacket>>)>();
-
-  /// Wipe the packet.
-  ///
-  /// Unreference the buffer referenced by the packet and reset the
-  /// remaining packet fields to their default values.
-  ///
-  /// @param pkt The packet to be unreferenced.
-  void av_packet_unref(
-    ffi.Pointer<AVPacket> pkt,
-  ) {
-    return _av_packet_unref(
-      pkt,
-    );
-  }
-
-  late final _av_packet_unrefPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<AVPacket>)>>(
-          'av_packet_unref');
-  late final _av_packet_unref =
-      _av_packet_unrefPtr.asFunction<void Function(ffi.Pointer<AVPacket>)>();
 
   /// Convert valid timing fields (timestamps / durations) in a packet from one
   /// timebase to another. Timestamps with unknown values (AV_NOPTS_VALUE) will be
@@ -284,17 +254,6 @@ class FFmpeg {
           'avio_close');
   late final _avio_close =
       _avio_closePtr.asFunction<int Function(ffi.Pointer<AVIOContext>)>();
-
-  /// Return the LIBAVFORMAT_VERSION_INT constant.
-  int avformat_version() {
-    return _avformat_version();
-  }
-
-  late final _avformat_versionPtr =
-      _lookup<ffi.NativeFunction<ffi.UnsignedInt Function()>>(
-          'avformat_version');
-  late final _avformat_version =
-      _avformat_versionPtr.asFunction<int Function()>();
 
   /// Return the libavformat build-time configuration.
   ffi.Pointer<ffi.Char> avformat_configuration() {
@@ -706,60 +665,6 @@ final class AVRational extends ffi.Struct {
   /// < Denominator
   @ffi.Int()
   external int den;
-}
-
-/// Rounding methods.
-enum AVRounding {
-  /// < Round toward zero.
-  AV_ROUND_ZERO(0),
-
-  /// < Round away from zero.
-  AV_ROUND_INF(1),
-
-  /// < Round toward -infinity.
-  AV_ROUND_DOWN(2),
-
-  /// < Round toward +infinity.
-  AV_ROUND_UP(3),
-
-  /// < Round to nearest and halfway cases away from zero.
-  AV_ROUND_NEAR_INF(5),
-
-  /// Flag telling rescaling functions to pass `INT64_MIN`/`MAX` through
-  /// unchanged, avoiding special cases for #AV_NOPTS_VALUE.
-  ///
-  /// Unlike other values of the enumeration AVRounding, this value is a
-  /// bitmask that must be used in conjunction with another value of the
-  /// enumeration through a bitwise OR, in order to set behavior for normal
-  /// cases.
-  ///
-  /// @code{.c}
-  /// av_rescale_rnd(3, 1, 2, AV_ROUND_UP | AV_ROUND_PASS_MINMAX);
-  /// // Rescaling 3:
-  /// //     Calculating 3 * 1 / 2
-  /// //     3 / 2 is rounded up to 2
-  /// //     => 2
-  ///
-  /// av_rescale_rnd(AV_NOPTS_VALUE, 1, 2, AV_ROUND_UP | AV_ROUND_PASS_MINMAX);
-  /// // Rescaling AV_NOPTS_VALUE:
-  /// //     AV_NOPTS_VALUE == INT64_MIN
-  /// //     AV_NOPTS_VALUE is passed through
-  /// //     => AV_NOPTS_VALUE
-  /// @endcode
-  AV_ROUND_PASS_MINMAX(8192);
-
-  final int value;
-  const AVRounding(this.value);
-
-  static AVRounding fromValue(int value) => switch (value) {
-        0 => AV_ROUND_ZERO,
-        1 => AV_ROUND_INF,
-        2 => AV_ROUND_DOWN,
-        3 => AV_ROUND_UP,
-        5 => AV_ROUND_NEAR_INF,
-        8192 => AV_ROUND_PASS_MINMAX,
-        _ => throw ArgumentError("Unknown value for AVRounding: $value"),
-      };
 }
 
 /// This structure stores compressed data. It is typically exported by demuxers
@@ -6595,6 +6500,62 @@ final class AVProfile extends ffi.Struct {
 }
 
 const int AV_NOPTS_VALUE = -9223372036854775808;
+
+const int AVERROR_BSF_NOT_FOUND = -1179861752;
+
+const int AVERROR_BUG = -558323010;
+
+const int AVERROR_BUFFER_TOO_SMALL = -1397118274;
+
+const int AVERROR_DECODER_NOT_FOUND = -1128613112;
+
+const int AVERROR_DEMUXER_NOT_FOUND = -1296385272;
+
+const int AVERROR_ENCODER_NOT_FOUND = -1129203192;
+
+const int AVERROR_EOF = -541478725;
+
+const int AVERROR_EXIT = -1414092869;
+
+const int AVERROR_EXTERNAL = -542398533;
+
+const int AVERROR_FILTER_NOT_FOUND = -1279870712;
+
+const int AVERROR_INVALIDDATA = -1094995529;
+
+const int AVERROR_MUXER_NOT_FOUND = -1481985528;
+
+const int AVERROR_OPTION_NOT_FOUND = -1414549496;
+
+const int AVERROR_PATCHWELCOME = -1163346256;
+
+const int AVERROR_PROTOCOL_NOT_FOUND = -1330794744;
+
+const int AVERROR_STREAM_NOT_FOUND = -1381258232;
+
+const int AVERROR_BUG2 = -541545794;
+
+const int AVERROR_UNKNOWN = -1313558101;
+
+const int AVERROR_EXPERIMENTAL = -733130664;
+
+const int AVERROR_INPUT_CHANGED = -1668179713;
+
+const int AVERROR_OUTPUT_CHANGED = -1668179714;
+
+const int AVERROR_HTTP_BAD_REQUEST = -808465656;
+
+const int AVERROR_HTTP_UNAUTHORIZED = -825242872;
+
+const int AVERROR_HTTP_FORBIDDEN = -858797304;
+
+const int AVERROR_HTTP_NOT_FOUND = -875574520;
+
+const int AVERROR_HTTP_TOO_MANY_REQUESTS = -959591672;
+
+const int AVERROR_HTTP_OTHER_4XX = -1482175736;
+
+const int AVERROR_HTTP_SERVER_ERROR = -1482175992;
 
 const int AV_LOG_QUIET = -8;
 

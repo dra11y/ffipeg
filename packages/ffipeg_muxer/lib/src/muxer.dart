@@ -1,9 +1,11 @@
 @FFmpegGen(
+  versionSpec: '>=7.1 <8.0',
   excludeAllByDefault: true,
   functions: FFInclude(functions),
   structs: FFInclude({'AVFormatContext', 'AVIOContext', 'AVPacket'}),
   enums: FFInclude({'AVMediaType'}),
-  macros: FFInclude({'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*'}),
+  macros: FFInclude(
+      {'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*', 'AVERROR.*'}),
 )
 library;
 
@@ -19,12 +21,14 @@ import 'muxer.ffipeg.dart';
 
 const functions = <String>{
   'av_compare_ts',
+  'av_version_info',
   'av_interleaved_write_frame',
   'av_log_set_level',
   'av_packet_alloc',
   'av_packet_free',
   'av_packet_rescale_ts',
   'av_read_frame',
+  'av_strerror',
   'av_write_trailer',
   'avcodec_parameters_copy',
   'avformat_alloc_output_context2',
@@ -34,12 +38,13 @@ const functions = <String>{
   'avformat_free_context',
   'avformat_new_stream',
   'avformat_open_input',
-  'avformat_version',
   'avformat_write_header',
   'avio_close',
   'avio_open',
 };
 
+/// Convenient wrapper for media packet info coupled with its
+/// context and streams, to avoid passing them around separately.
 class MediaPacket {
   final AVMediaType mediaType;
   final Pointer<Pointer<AVFormatContext>> inputCtx;
@@ -61,6 +66,11 @@ class MediaPacket {
   });
 }
 
+extension AVMediaTypeDescription on AVMediaType {
+  /// Get the stream description in lowercase, i.e. 'audio' or 'video'
+  String get description => name.split('_').last.toLowerCase();
+}
+
 /// For FFmpeg examples in C, refer to:
 /// https://github.com/FFmpeg/FFmpeg/tree/master/doc/examples
 /// e.g. mux.c and remux.c
@@ -79,34 +89,16 @@ class Muxer {
   late final FFmpeg ffmpeg;
   late final Logger log;
 
-  int avformatVersion() {
-    return ffmpeg.avformat_version();
+  String getFFmpegVersion() {
+    final Pointer<Utf8> versionPtr = ffmpeg.av_version_info().cast();
+    return versionPtr.toDartString();
   }
 
-  String avformatConfiguration() {
+  String getFFmpegConfig() {
     final Pointer<Utf8> configPtr =
         ffmpeg.avformat_configuration().cast<Utf8>();
     return configPtr.toDartString();
   }
-
-  MuxerError error(String message) {
-    log.severe(message);
-    return MuxerError(message);
-  }
-
-  int avLogLevel(Level level) => switch (level) {
-        Level.ALL => AV_LOG_TRACE,
-        Level.FINEST => AV_LOG_TRACE,
-        Level.FINER => AV_LOG_DEBUG,
-        Level.FINE => AV_LOG_VERBOSE,
-        Level.CONFIG => AV_LOG_VERBOSE,
-        Level.INFO => AV_LOG_INFO,
-        Level.WARNING => AV_LOG_WARNING,
-        Level.SEVERE => AV_LOG_ERROR,
-        Level.SHOUT => AV_LOG_FATAL,
-        Level.OFF => AV_LOG_QUIET,
-        _ => AV_LOG_QUIET,
-      };
 
   MuxerResult run({
     required String videoFile,
@@ -116,23 +108,26 @@ class Muxer {
     bool overwrite = false,
   }) {
     if (File(outputFile).existsSync() && !overwrite) {
-      return error('Output file $outputFile already exists.');
+      return _error('Output file $outputFile already exists.');
     }
 
-    ffmpeg.av_log_set_level(avLogLevel(log.level));
+    ffmpeg.av_log_set_level(_avLogLevel(log.level));
 
     // Allocate pointers
     log.finer('Allocating pointers...');
+    final audioPktPtr = _allocPacket();
+    if (audioPktPtr == null) {
+      return _error('Failed to allocate audio packet');
+    }
+    final videoPktPtr = _allocPacket();
+    if (videoPktPtr == null) {
+      ffmpeg.av_packet_free(audioPktPtr);
+      return _error('Failed to allocate video packet');
+    }
     final videoInputCtx = calloc<Pointer<AVFormatContext>>();
     final audioInputCtx = calloc<Pointer<AVFormatContext>>();
     final outputCtx = calloc<Pointer<AVFormatContext>>();
     final avioCtx = calloc<Pointer<AVIOContext>>();
-    final audioPkt = ffmpeg.av_packet_alloc();
-    final videoPkt = ffmpeg.av_packet_alloc();
-    final audioPktPtr = calloc<Pointer<AVPacket>>();
-    final videoPktPtr = calloc<Pointer<AVPacket>>();
-    audioPktPtr.value = audioPkt;
-    videoPktPtr.value = videoPkt;
 
     // Convert Dart strings to native UTF-8 strings
     final videoFileNative = videoFile.toNativeUtf8();
@@ -141,123 +136,53 @@ class Muxer {
     final formatNative = format?.toNativeUtf8() ?? nullptr;
 
     try {
-      // Step 1: Open video input file
-      log.fine('Opening video file: $videoFile...');
-      if (0 !=
-          ffmpeg.avformat_open_input(
-              videoInputCtx, videoFileNative.cast(), nullptr, nullptr)) {
-        throw error('Failed to open video file: $videoFile');
-      }
-      log.info('Opened video file: $videoFile');
-
-      if (ffmpeg.avformat_find_stream_info(videoInputCtx.value, nullptr) < 0) {
-        throw error('Failed to find video stream info');
-      }
-      log.fine('Found video stream info.');
-
-      // Find video stream index in the video file
-      Pointer<AVStream> videoInputStream = nullptr;
-      for (int i = 0; i < videoInputCtx.value.ref.nb_streams; i++) {
-        if (videoInputCtx.value.ref.streams[i].ref.codecpar.ref.codec_type ==
-            AVMediaType.AVMEDIA_TYPE_VIDEO) {
-          videoInputStream = videoInputCtx.value.ref.streams[i];
-          break;
-        }
-      }
-      if (videoInputStream == nullptr) {
-        throw error('No video stream found in video file.');
-      }
-
-      // Step 2: Open audio input file
-      log.fine('Opening audio file: $audioFile...');
-      if (ffmpeg.avformat_open_input(
-              audioInputCtx, audioFileNative.cast(), nullptr, nullptr) !=
-          0) {
-        throw error('Failed to open audio file: $audioFile');
-      }
-      log.info('Opened audio file: $audioFile');
-
-      if (ffmpeg.avformat_find_stream_info(audioInputCtx.value, nullptr) < 0) {
-        throw error('Failed to find audio stream info');
-      }
-      log.fine('Found audio stream info.');
-
-      // Find audio stream index in the audio file
-      Pointer<AVStream> audioInputStream = nullptr;
-      for (int i = 0; i < audioInputCtx.value.ref.nb_streams; i++) {
-        if (audioInputCtx.value.ref.streams[i].ref.codecpar.ref.codec_type ==
-            AVMediaType.AVMEDIA_TYPE_AUDIO) {
-          audioInputStream = audioInputCtx.value.ref.streams[i];
-          break;
-        }
-      }
-      if (audioInputStream == nullptr) {
-        throw error('No audio stream found in audio file.');
-      }
+      // Step 1 & 2: Open video and audio input files
+      final videoInputStream = _openInputFile(
+          videoFile, videoInputCtx, AVMediaType.AVMEDIA_TYPE_VIDEO);
+      final audioInputStream = _openInputFile(
+          audioFile, audioInputCtx, AVMediaType.AVMEDIA_TYPE_AUDIO);
 
       // Step 3: Allocate output context
-      if (ffmpeg.avformat_alloc_output_context2(outputCtx, nullptr,
-              formatNative.cast(), outputFileNative.cast()) <
-          0) {
-        throw error('Failed to allocate output context');
+      int errorCode = ffmpeg.avformat_alloc_output_context2(
+          outputCtx, nullptr, formatNative.cast(), outputFileNative.cast());
+      if (errorCode < 0) {
+        throw _error('Failed to allocate output context', errorCode: errorCode);
       }
       log.fine('Allocated output context.');
 
-      // Step 4: Add video stream to the output context
-      final videoOutputStream =
-          ffmpeg.avformat_new_stream(outputCtx.value, nullptr);
-      if (videoOutputStream == nullptr) {
-        throw error('Failed to create video stream');
-      }
-      log.fine('Added video stream to output context.');
+      // Steps 4 & 5: Add video and audio streams to the output context
+      final videoOutputStream = _addStreamToOutputContext(
+          outputCtx: outputCtx,
+          inputStream: videoInputStream,
+          streamType: AVMediaType.AVMEDIA_TYPE_VIDEO);
+      final audioOutputStream = _addStreamToOutputContext(
+          outputCtx: outputCtx,
+          inputStream: audioInputStream,
+          streamType: AVMediaType.AVMEDIA_TYPE_AUDIO);
 
       final videoPacket = MediaPacket(
         mediaType: AVMediaType.AVMEDIA_TYPE_VIDEO,
         inputCtx: videoInputCtx,
-        pkt: videoPkt,
+        pkt: videoPktPtr.value,
         inputStream: videoInputStream,
         outputStream: videoOutputStream,
       );
 
-      ffmpeg.avcodec_parameters_copy(videoPacket.outputStream.ref.codecpar,
-          videoPacket.inputStream.ref.codecpar);
-      if (videoPacket.inputStream.ref.time_base.den == 0) {
-        throw error('Invalid video time base');
-      }
-      videoPacket.outputStream.ref.time_base =
-          videoPacket.inputStream.ref.time_base;
-      log.finer('Copied video stream codec parameters.');
-
-      // Step 5: Add audio stream to the output context
-      final audioOutputStream =
-          ffmpeg.avformat_new_stream(outputCtx.value, nullptr);
-      if (audioOutputStream == nullptr) {
-        throw error('Failed to create audio stream');
-      }
-      log.fine('Added audio stream to output context.');
-
       final audioPacket = MediaPacket(
         mediaType: AVMediaType.AVMEDIA_TYPE_AUDIO,
         inputCtx: audioInputCtx,
-        pkt: audioPkt,
+        pkt: audioPktPtr.value,
         inputStream: audioInputStream,
         outputStream: audioOutputStream,
       );
 
-      ffmpeg.avcodec_parameters_copy(audioPacket.outputStream.ref.codecpar,
-          audioPacket.inputStream.ref.codecpar);
-      if (audioPacket.inputStream.ref.time_base.den == 0) {
-        throw error('Invalid audio time base');
-      }
-      audioPacket.outputStream.ref.time_base =
-          audioPacket.inputStream.ref.time_base;
-      log.finer('Copied audio stream codec parameters.');
-
       // Step 6: Open output file
       log.fine('Opening output file: $outputFile...');
-      if (ffmpeg.avio_open(avioCtx, outputFileNative.cast(), AVIO_FLAG_WRITE) <
-          0) {
-        throw error('Failed to open output file: $outputFile');
+      errorCode =
+          ffmpeg.avio_open(avioCtx, outputFileNative.cast(), AVIO_FLAG_WRITE);
+      if (errorCode < 0) {
+        throw _error('Failed to open output file: $outputFile',
+            errorCode: errorCode);
       }
       log.info('Opened output file: $outputFile');
 
@@ -266,97 +191,34 @@ class Muxer {
       log.finer('Assigned AVIO context to output context.');
 
       // Step 8: Write the file header
-      if (ffmpeg.avformat_write_header(outputCtx.value, nullptr) < 0) {
-        throw error('Failed to write header');
+      errorCode = ffmpeg.avformat_write_header(outputCtx.value, nullptr);
+      if (errorCode < 0) {
+        throw _error('Failed to write header', errorCode: errorCode);
       }
       log.fine('Wrote header.');
 
-      // Step 9: Start reading and muxing packets
-
-      bool readPacket(MediaPacket pkt) {
-        final result = ffmpeg.av_read_frame(pkt.inputCtx.value, pkt.pkt);
-        if (result < 0) {
-          return false;
-        }
-        // Rescale does nothing if input and output time bases are the same.
-        ffmpeg.av_packet_rescale_ts(
-          pkt.pkt,
-          pkt.inputStream.ref.time_base,
-          pkt.outputStream.ref.time_base,
-        );
-        // Set the stream index to the proper output stream index.
-        pkt.pkt.ref.stream_index = pkt.outputStream.ref.index;
-        return true;
-      }
-
-      void logPacket(MediaPacket pkt) {
-        // log.finer(
-        //     'write ${pkt.mediaType} @ ${pkt.scaledPts.toStringAsFixed(2)} s');
-        log.finer([
-          'Write ${pkt.mediaType == AVMediaType.AVMEDIA_TYPE_VIDEO ? 'VIDEO' : 'audio'} pkt,',
-          'pts=${pkt.pkt.ref.pts}',
-          if (pkt.pkt.ref.dts != pkt.pkt.ref.pts) '(dts=${pkt.pkt.ref.dts})',
-          'size=${pkt.pkt.ref.size}B',
-          '@ ${pkt.scaledPts.toStringAsFixed(2)}s',
-        ].join(' '));
-      }
-
-      bool writePacketAndReadNext(MediaPacket pkt) {
-        logPacket(pkt);
-        ffmpeg.av_interleaved_write_frame(outputCtx.value, pkt.pkt);
-
-        return readPacket(pkt);
-      }
-
-      bool hasVideo = readPacket(videoPacket);
-      bool hasAudio = readPacket(audioPacket);
-
-      bool wantsVideoPacket() {
-        if (!hasVideo) {
-          return false;
-        }
-
-        if (!hasAudio) {
-          return true;
-        }
-
-        final compare = ffmpeg.av_compare_ts(
-          videoPacket.pkt.ref.pts,
-          videoPacket.outputStream.ref.time_base,
-          audioPacket.pkt.ref.pts,
-          audioPacket.outputStream.ref.time_base,
-        );
-
-        return compare <= 0;
-      }
-
-      while (hasAudio || hasVideo) {
-        final wantsVideo = wantsVideoPacket();
-        if (wantsVideo) {
-          hasVideo = writePacketAndReadNext(videoPacket);
-        } else {
-          hasAudio = writePacketAndReadNext(audioPacket);
-        }
-      }
-
-      log.info('Wrote ${videoPacket.outputStream.ref.nb_frames} video frames'
-          ' and ${audioPacket.outputStream.ref.nb_frames} audio frames.');
+      // Step 9: Mux streams
+      _muxStreams(
+          outputCtx: outputCtx,
+          videoPacket: videoPacket,
+          audioPacket: audioPacket);
 
       // Step 10: Write trailer to close the file
-      ffmpeg.av_write_trailer(outputCtx.value);
+      errorCode = ffmpeg.av_write_trailer(outputCtx.value);
+      if (errorCode < 0) {
+        throw _error('Failed to write trailer', errorCode: errorCode);
+      }
       log.fine('Wrote trailer.');
 
       return MuxerOK(outputFile);
-    } catch (e) {
-      return error('An unhandled error occurred: $e');
+    } on MuxerError catch (e) {
+      return e;
     } finally {
       // Clean up
 
       if (avioCtx.value != nullptr) {
         ffmpeg.avio_close(avioCtx.value);
         log.info('Output file $outputFile closed.');
-      } else {
-        log.warning('Output file $outputFile was never opened.');
       }
 
       ffmpeg
@@ -380,6 +242,194 @@ class Muxer {
       ]);
 
       log.info('Resources freed.');
+    }
+  }
+
+  MuxerError _error(String message, {int? errorCode}) {
+    final List<String> errorList = [message];
+
+    if (errorCode != null) {
+      const int errbufSize = 1024;
+      final errbuf = calloc<Char>(errbufSize);
+      try {
+        // Fetch FFmpeg error description
+        final result = ffmpeg.av_strerror(errorCode, errbuf, errbufSize);
+        if (result == 0) {
+          errorList.add(errbuf.cast<Utf8>().toDartString());
+        } else {
+          errorList.add('Unable to retrieve error description from FFmpeg');
+        }
+      } finally {
+        calloc.free(errbuf);
+      }
+    }
+    final errorMessage = errorList.join(': ');
+    log.severe(errorMessage);
+    return MuxerError(errorMessage);
+  }
+
+  int _avLogLevel(Level level) => switch (level) {
+        Level.ALL => AV_LOG_TRACE,
+        Level.FINEST => AV_LOG_TRACE,
+        Level.FINER => AV_LOG_DEBUG,
+        Level.FINE => AV_LOG_VERBOSE,
+        Level.CONFIG => AV_LOG_VERBOSE,
+        Level.INFO => AV_LOG_INFO,
+        Level.WARNING => AV_LOG_WARNING,
+        Level.SEVERE => AV_LOG_ERROR,
+        Level.SHOUT => AV_LOG_FATAL,
+        Level.OFF => AV_LOG_QUIET,
+        _ => AV_LOG_QUIET,
+      };
+
+  Pointer<Pointer<AVPacket>>? _allocPacket() {
+    final pktPtr = calloc<Pointer<AVPacket>>();
+    final pkt = ffmpeg.av_packet_alloc();
+    if (pkt == nullptr) {
+      calloc.free(pktPtr);
+      return null;
+    }
+    pktPtr.value = pkt;
+    return pktPtr;
+  }
+
+  Pointer<AVStream> _openInputFile(
+    String filePath,
+    Pointer<Pointer<AVFormatContext>> inputCtx,
+    AVMediaType streamType,
+  ) {
+    final description = streamType.description;
+    log.fine('Opening $description file: $filePath...');
+    final fileNative = filePath.toNativeUtf8();
+    try {
+      int errorCode = ffmpeg.avformat_open_input(
+          inputCtx, fileNative.cast(), nullptr, nullptr);
+      if (errorCode != 0) {
+        throw _error('Failed to open $description file: $filePath',
+            errorCode: errorCode);
+      }
+      log.info('Opened $description file: $filePath');
+
+      errorCode = ffmpeg.avformat_find_stream_info(inputCtx.value, nullptr);
+      if (errorCode < 0) {
+        throw _error('Failed to find $description stream info',
+            errorCode: errorCode);
+      }
+      log.fine('Found $description stream info.');
+
+      Pointer<AVStream> inputStream = nullptr;
+      for (int i = 0; i < inputCtx.value.ref.nb_streams; i++) {
+        if (inputCtx.value.ref.streams[i].ref.codecpar.ref.codec_type ==
+            streamType) {
+          inputStream = inputCtx.value.ref.streams[i];
+          break;
+        }
+      }
+      if (inputStream == nullptr) {
+        throw _error('No $description stream found in file: $filePath');
+      }
+
+      return inputStream;
+    } finally {
+      calloc.free(fileNative);
+    }
+  }
+
+  Pointer<AVStream> _addStreamToOutputContext({
+    required Pointer<Pointer<AVFormatContext>> outputCtx,
+    required Pointer<AVStream> inputStream,
+    required AVMediaType streamType,
+  }) {
+    final description = streamType.description;
+
+    final outputStream = ffmpeg.avformat_new_stream(outputCtx.value, nullptr);
+    if (outputStream == nullptr) {
+      throw _error('Failed to create $description stream');
+    }
+    log.fine('Added $description stream to output context.');
+
+    int errorCode = ffmpeg.avcodec_parameters_copy(
+        outputStream.ref.codecpar, inputStream.ref.codecpar);
+    if (errorCode < 0) {
+      throw _error('Failed to copy $description codec parameters',
+          errorCode: errorCode);
+    }
+    if (inputStream.ref.time_base.den == 0) {
+      throw _error('Invalid $description time base');
+    }
+    outputStream.ref.time_base = inputStream.ref.time_base;
+    log.finer('Copied $description stream codec parameters.');
+
+    return outputStream;
+  }
+
+  void _muxStreams({
+    required Pointer<Pointer<AVFormatContext>> outputCtx,
+    required MediaPacket videoPacket,
+    required MediaPacket audioPacket,
+  }) {
+    // Prime the loop with the first packet of each stream.
+    bool hasVideo = _readNextPacket(videoPacket);
+    bool hasAudio = _readNextPacket(audioPacket);
+
+    // While there are still video or audio packets to write...
+    while (hasAudio || hasVideo) {
+      // Find the next packet with the earliest timestamp.
+      final bool wantsVideo = (hasVideo &&
+          (!hasAudio ||
+              ffmpeg.av_compare_ts(
+                      videoPacket.pkt.ref.pts,
+                      videoPacket.outputStream.ref.time_base,
+                      audioPacket.pkt.ref.pts,
+                      audioPacket.outputStream.ref.time_base) <=
+                  0));
+      if (wantsVideo) {
+        _writePacket(outputCtx.value, videoPacket);
+        hasVideo = _readNextPacket(videoPacket);
+      } else {
+        _writePacket(outputCtx.value, audioPacket);
+        hasAudio = _readNextPacket(audioPacket);
+      }
+    }
+
+    log.info('Wrote ${videoPacket.outputStream.ref.nb_frames} video frames'
+        ' and ${audioPacket.outputStream.ref.nb_frames} audio frames.');
+  }
+
+  bool _readNextPacket(MediaPacket pkt) {
+    int errorCode = ffmpeg.av_read_frame(pkt.inputCtx.value, pkt.pkt);
+    if (errorCode < 0) {
+      return false;
+    }
+    // Rescale does nothing if input and output time bases are the same.
+    // In this package, currently, they are, but it's good practice to do it anyway.
+    ffmpeg.av_packet_rescale_ts(
+      pkt.pkt,
+      pkt.inputStream.ref.time_base,
+      pkt.outputStream.ref.time_base,
+    );
+    // Set the stream index to the proper output stream index.
+    // Otherwise, the packet will be written to the wrong stream.
+    pkt.pkt.ref.stream_index = pkt.outputStream.ref.index;
+    return true;
+  }
+
+  void _writePacket(Pointer<AVFormatContext> outputCtx, MediaPacket pkt) {
+    log.finer([
+      'Write ${pkt.mediaType.description} pkt,',
+      'pts=${pkt.pkt.ref.pts}',
+      if (pkt.pkt.ref.dts != pkt.pkt.ref.pts) '(dts=${pkt.pkt.ref.dts})',
+      'size=${pkt.pkt.ref.size}B',
+      '@ ${pkt.scaledPts.toStringAsFixed(2)}s',
+    ].join(' '));
+
+    AVERROR_BSF_NOT_FOUND;
+
+    // Write the packet ensuring correct interleaving.
+    int errorCode = ffmpeg.av_interleaved_write_frame(outputCtx, pkt.pkt);
+    if (errorCode < 0) {
+      throw _error('Failed to write ${pkt.mediaType.description} packet',
+          errorCode: errorCode);
     }
   }
 
