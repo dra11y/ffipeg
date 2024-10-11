@@ -1,5 +1,5 @@
 name: ffipeg
-description: Dart FFI bindings generator for FFmpeg
+description: Dart FFI bindings annotations for FFmpeg
 version: 0.1.1
 repository: https://github.com/dra11y/ffipeg-dart
 
