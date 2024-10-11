@@ -24,9 +24,10 @@ command:
     hooks:
       pre: |
         melos exec --scope=ffipeg_muxer "dart run build_runner build"
-        rm -rf packages/ffipeg/example
-        cp -r packages/ffipeg_muxer packages/ffipeg/example
-        cp -r packages/ffipeg_muxer packages/ffipeg_builder/example
+        rm -rf packages/ffipeg/example packages/ffipeg_builder/example
+        mkdir -p packages/ffipeg/example packages/ffipeg_builder/example
+        cp packages/ffipeg_muxer/lib/src/muxer.dart packages/ffipeg/example/main.dart
+        cp packages/ffipeg_muxer/lib/src/muxer.dart packages/ffipeg_builder/example/main.dart
         find . -name .DS_Store | xargs rm
   version:
     hooks:
