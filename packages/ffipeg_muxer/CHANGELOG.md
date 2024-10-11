@@ -1,3 +1,7 @@
+## 0.1.1+7
+
+ - **FIX**: ffipeg_muxer documentation and example. ([ce2010b7](https://github.com/dra11y/ffipeg-dart/commit/ce2010b7722fd9fd8f11207011ede6e9638db5b6))
+
 ## 0.1.1+6
 
  - Update a dependency to the latest release.

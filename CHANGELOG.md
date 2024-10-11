@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`ffipeg_muxer` - `v0.1.1+7`](#ffipeg_muxer---v0117)
+
+---
+
+#### `ffipeg_muxer` - `v0.1.1+7`
+
+ - **FIX**: ffipeg_muxer documentation and example. ([ce2010b7](https://github.com/dra11y/ffipeg-dart/commit/ce2010b7722fd9fd8f11207011ede6e9638db5b6))
+
+
+## 2024-10-11
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`ffipeg` - `v0.1.1+4`](#ffipeg---v0114)
  - [`ffipeg_builder` - `v0.1.1+4`](#ffipeg_builder---v0114)
  - [`ffipeg_muxer` - `v0.1.1+6`](#ffipeg_muxer---v0116)

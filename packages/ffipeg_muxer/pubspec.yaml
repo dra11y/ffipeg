@@ -1,6 +1,6 @@
 name: ffipeg_muxer
 description: CLI and API to use FFmpeg FFI to mux separate audio and video files into a single output file.
-version: 0.1.1+6
+version: 0.1.1+7
 repository: https://github.com/dra11y/ffipeg-dart
 
 environment:
