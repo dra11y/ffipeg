@@ -12,6 +12,7 @@ Easily generate Dart FFI bindings to FFmpeg for use in your project in 3 steps:
 ### ffmpeg.dart
 ```dart
 @FFmpegGen(
+  versionSpec: '>=7.1 <8.0',
   excludeAllByDefault: true,
   functions: FFInclude({
     'av_compare_ts',
