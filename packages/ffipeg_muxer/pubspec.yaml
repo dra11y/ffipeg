@@ -1,6 +1,6 @@
 name: ffipeg_muxer
 description: A sample command-line application with basic argument parsing.
-version: 0.0.1
+version: 0.1.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
@@ -15,6 +15,7 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.4.13
+  build_version: ^2.1.1
   ffipeg_builder:
   lints: ^5.0.0
   test: ^1.25.8

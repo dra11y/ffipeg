@@ -8,6 +8,7 @@
 library;
 
 import 'dart:ffi';
+import 'dart:io';
 
 import 'package:ffi/ffi.dart';
 import 'package:ffipeg/ffipeg.dart';
@@ -19,6 +20,7 @@ import 'muxer.ffipeg.dart';
 const functions = <String>{
   'av_compare_ts',
   'av_interleaved_write_frame',
+  'av_log_set_level',
   'av_packet_alloc',
   'av_packet_free',
   'av_packet_rescale_ts',
@@ -53,7 +55,7 @@ const structs = <String>{
   'AVRational',
 };
 
-const macros = <String>{'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE'};
+const macros = <String>{'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*'};
 
 class MediaPacket {
   final AVMediaType mediaType;
@@ -109,12 +111,33 @@ class Muxer {
     return MuxerError(message);
   }
 
+  int avLogLevel(Level level) => switch (level) {
+        Level.ALL => AV_LOG_TRACE,
+        Level.FINEST => AV_LOG_TRACE,
+        Level.FINER => AV_LOG_DEBUG,
+        Level.FINE => AV_LOG_VERBOSE,
+        Level.CONFIG => AV_LOG_VERBOSE,
+        Level.INFO => AV_LOG_INFO,
+        Level.WARNING => AV_LOG_WARNING,
+        Level.SEVERE => AV_LOG_ERROR,
+        Level.SHOUT => AV_LOG_FATAL,
+        Level.OFF => AV_LOG_QUIET,
+        _ => AV_LOG_QUIET,
+      };
+
   MuxerResult run({
     required String videoFile,
     required String audioFile,
     required String outputFile,
     String? format,
+    bool overwrite = false,
   }) {
+    if (File(outputFile).existsSync() && !overwrite) {
+      return error('Output file $outputFile already exists.');
+    }
+
+    ffmpeg.av_log_set_level(avLogLevel(log.level));
+
     // Allocate pointers
     log.finer('Allocating pointers...');
     final videoInputCtx = calloc<Pointer<AVFormatContext>>();
@@ -136,7 +159,7 @@ class Muxer {
 
     try {
       // Step 1: Open video input file
-      log.info('Opening video file: $videoFile...');
+      log.fine('Opening video file: $videoFile...');
       if (ffmpeg.avformat_open_input(
               videoInputCtx, videoFileNative.cast(), nullptr, nullptr) !=
           0) {
@@ -147,7 +170,7 @@ class Muxer {
       if (ffmpeg.avformat_find_stream_info(videoInputCtx.value, nullptr) < 0) {
         throw error('Failed to find video stream info');
       }
-      log.info('Found video stream info.');
+      log.fine('Found video stream info.');
 
       // Find video stream index in the video file
       Pointer<AVStream> videoInputStream = nullptr;
@@ -163,7 +186,7 @@ class Muxer {
       }
 
       // Step 2: Open audio input file
-      log.info('Opening audio file: $audioFile...');
+      log.fine('Opening audio file: $audioFile...');
       if (ffmpeg.avformat_open_input(
               audioInputCtx, audioFileNative.cast(), nullptr, nullptr) !=
           0) {
@@ -174,7 +197,7 @@ class Muxer {
       if (ffmpeg.avformat_find_stream_info(audioInputCtx.value, nullptr) < 0) {
         throw error('Failed to find audio stream info');
       }
-      log.info('Found audio stream info.');
+      log.fine('Found audio stream info.');
 
       // Find audio stream index in the audio file
       Pointer<AVStream> audioInputStream = nullptr;
@@ -248,7 +271,7 @@ class Muxer {
       log.finer('Copied audio stream codec parameters.');
 
       // Step 6: Open output file
-      log.info('Opening output file: $outputFile...');
+      log.fine('Opening output file: $outputFile...');
       if (ffmpeg.avio_open(avioCtx, outputFileNative.cast(), AVIO_FLAG_WRITE) <
           0) {
         throw error('Failed to open output file: $outputFile');
@@ -333,6 +356,9 @@ class Muxer {
         }
       }
 
+      log.info('Wrote ${videoPacket.outputStream.ref.nb_frames} video frames'
+          ' and ${audioPacket.outputStream.ref.nb_frames} audio frames.');
+
       // Step 10: Write trailer to close the file
       ffmpeg.av_write_trailer(outputCtx.value);
       log.fine('Wrote trailer.');
@@ -345,9 +371,9 @@ class Muxer {
 
       if (avioCtx.value != nullptr) {
         ffmpeg.avio_close(avioCtx.value);
-        log.info('File $outputFile closed.');
+        log.info('Output file $outputFile closed.');
       } else {
-        log.warning('File $outputFile was never opened.');
+        log.warning('Output file $outputFile was never opened.');
       }
 
       ffmpeg

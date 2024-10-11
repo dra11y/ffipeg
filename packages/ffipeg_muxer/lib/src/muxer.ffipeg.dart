@@ -103,6 +103,25 @@ class FFmpeg {
   late final _av_compare_ts = _av_compare_tsPtr
       .asFunction<int Function(int, AVRational, int, AVRational)>();
 
+  /// Set the log level
+  ///
+  /// @see lavu_log_constants
+  ///
+  /// @param level Logging level
+  void av_log_set_level(
+    int level,
+  ) {
+    return _av_log_set_level(
+      level,
+    );
+  }
+
+  late final _av_log_set_levelPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int)>>(
+          'av_log_set_level');
+  late final _av_log_set_level =
+      _av_log_set_levelPtr.asFunction<void Function(int)>();
+
   /// Allocate an AVPacket and set its fields to default values.  The resulting
   /// struct must be freed using av_packet_free().
   ///
@@ -6576,5 +6595,29 @@ final class AVProfile extends ffi.Struct {
 }
 
 const int AV_NOPTS_VALUE = -9223372036854775808;
+
+const int AV_LOG_QUIET = -8;
+
+const int AV_LOG_PANIC = 0;
+
+const int AV_LOG_FATAL = 8;
+
+const int AV_LOG_ERROR = 16;
+
+const int AV_LOG_WARNING = 24;
+
+const int AV_LOG_INFO = 32;
+
+const int AV_LOG_VERBOSE = 40;
+
+const int AV_LOG_DEBUG = 48;
+
+const int AV_LOG_TRACE = 56;
+
+const int AV_LOG_MAX_OFFSET = 64;
+
+const int AV_LOG_SKIP_REPEATED = 1;
+
+const int AV_LOG_PRINT_LEVEL = 2;
 
 const int AVIO_FLAG_WRITE = 2;

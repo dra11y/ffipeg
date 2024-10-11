@@ -8,12 +8,8 @@ packages:
   - packages/ffipeg_muxer
 
 scripts:
-  analyze:
-    exec: dart analyze .
   fix:
     exec: dart fix --apply
-  format:
-    exec: dart format .
 
 ide:
   intellij:
