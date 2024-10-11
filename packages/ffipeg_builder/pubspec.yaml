@@ -1,5 +1,5 @@
 name: ffipeg_builder
-description: Dart FFI bindings generator for FFmpeg
+description: Builder dev dependency for ffipeg -- Generate Dart FFI bindings to FFmpeg with a simple library annotation.
 version: 0.1.1
 repository: https://github.com/dra11y/ffipeg-dart
 

@@ -13,6 +13,7 @@ import 'package:path/path.dart' as path;
 
 import 'dart_object_extension.dart';
 
+/// Fast-running builder to generate the configuration JSON for FfiGen specific to FFmpeg.
 class FFmpegConfigBuilder extends Builder {
   final BuilderOptions options;
 

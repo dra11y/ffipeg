@@ -11,6 +11,8 @@ import 'package:yaml/yaml.dart';
 
 import 'constants.dart';
 
+/// Slow-running builder to run FfiGen on the generated config for FFmpeg.
+/// We run FfiGen() in a separate isolate to avoid Logger.root conflicts.
 class FFmpegFfiGenBuilder extends Builder {
   final BuilderOptions options;
 

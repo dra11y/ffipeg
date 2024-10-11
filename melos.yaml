@@ -26,6 +26,7 @@ command:
         melos exec --scope=ffipeg_muxer "dart run build_runner build"
         rm -rf packages/ffipeg/example
         cp -r packages/ffipeg_muxer packages/ffipeg/example
+        cp -r packages/ffipeg_muxer packages/ffipeg_builder/example
         find . -name .DS_Store | xargs rm
   version:
     hooks:
