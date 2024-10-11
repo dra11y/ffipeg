@@ -15,6 +15,37 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`ffipeg` - `v0.1.1+3`](#ffipeg---v0113)
+ - [`ffipeg_builder` - `v0.1.1+3`](#ffipeg_builder---v0113)
+ - [`ffipeg_muxer` - `v0.1.1+5`](#ffipeg_muxer---v0115)
+
+---
+
+#### `ffipeg` - `v0.1.1+3`
+
+ - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))
+
+#### `ffipeg_builder` - `v0.1.1+3`
+
+ - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))
+
+#### `ffipeg_muxer` - `v0.1.1+5`
+
+ - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))
+
+
+## 2024-10-11
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`ffipeg` - `v0.1.1+2`](#ffipeg---v0112)
  - [`ffipeg_builder` - `v0.1.1+2`](#ffipeg_builder---v0112)
  - [`ffipeg_muxer` - `v0.1.1+4`](#ffipeg_muxer---v0114)

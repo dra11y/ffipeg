@@ -1,3 +1,7 @@
+## 0.1.1+5
+
+ - **FIX**: copy muxer.dart to example/main.dart so actual example is visible on pub.dev. ([b60f1e33](https://github.com/dra11y/ffipeg-dart/commit/b60f1e3371b8b5d46ea84446ce333faa8bd0db98))
+
 ## 0.1.1+4
 
  - **FIX**: example must be added to git to be published. ([ce5007b9](https://github.com/dra11y/ffipeg-dart/commit/ce5007b99188e6b86f3d52606e6df4ae19ae6855))
