@@ -23,3 +23,6 @@ command:
   publish:
     hooks:
       pre: melos exec --scope=ffipeg_muxer "dart run build_runner build"
+  version:
+    hooks:
+      preCommit: melos exec --scope=ffipeg_muxer "dart run build_runner build"
