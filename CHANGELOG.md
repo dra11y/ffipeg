@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`ffipeg_muxer` - `v0.1.1+2`](#ffipeg_muxer---v0112)
+
+---
+
+#### `ffipeg_muxer` - `v0.1.1+2`
+
+ - patch: remove unused AVERROR_ constants; add logging for pts == AV_NOPTS_VALUE
+
+
+## 2024-10-11
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`ffipeg_muxer` - `v0.1.1+1`](#ffipeg_muxer---v0111)
 
 ---
