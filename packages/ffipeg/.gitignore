@@ -1,5 +1,2 @@
 .dart_tool/
 pubspec.lock
-
-# ffipeg example is copied on publish from ../packages/ffipeg_muxer
-example/**
