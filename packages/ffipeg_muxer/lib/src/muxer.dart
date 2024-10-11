@@ -1,9 +1,9 @@
 @FFmpegGen(
   excludeAllByDefault: true,
   functions: FFInclude(functions),
-  structs: FFInclude(structs),
-  enums: FFInclude(enums),
-  macros: FFInclude(macros),
+  structs: FFInclude({'AVFormatContext', 'AVIOContext', 'AVPacket'}),
+  enums: FFInclude({'AVMediaType'}),
+  macros: FFInclude({'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*'}),
 )
 library;
 
@@ -24,10 +24,7 @@ const functions = <String>{
   'av_packet_alloc',
   'av_packet_free',
   'av_packet_rescale_ts',
-  'av_packet_unref',
   'av_read_frame',
-  'av_rescale_q',
-  'av_rescale_q_rnd',
   'av_write_trailer',
   'avcodec_parameters_copy',
   'avformat_alloc_output_context2',
@@ -42,20 +39,6 @@ const functions = <String>{
   'avio_close',
   'avio_open',
 };
-
-const enums = <String>{
-  'AVMediaType',
-  'AVRounding',
-};
-
-const structs = <String>{
-  'AVFormatContext',
-  'AVIOContext',
-  'AVPacket',
-  'AVRational',
-};
-
-const macros = <String>{'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*'};
 
 class MediaPacket {
   final AVMediaType mediaType;
@@ -160,9 +143,9 @@ class Muxer {
     try {
       // Step 1: Open video input file
       log.fine('Opening video file: $videoFile...');
-      if (ffmpeg.avformat_open_input(
-              videoInputCtx, videoFileNative.cast(), nullptr, nullptr) !=
-          0) {
+      if (0 !=
+          ffmpeg.avformat_open_input(
+              videoInputCtx, videoFileNative.cast(), nullptr, nullptr)) {
         throw error('Failed to open video file: $videoFile');
       }
       log.info('Opened video file: $videoFile');
