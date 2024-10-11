@@ -4,8 +4,7 @@
   functions: FFInclude(functions),
   structs: FFInclude({'AVFormatContext', 'AVIOContext', 'AVPacket'}),
   enums: FFInclude({'AVMediaType'}),
-  macros: FFInclude(
-      {'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*', 'AVERROR.*'}),
+  macros: FFInclude({'AVIO_FLAG_WRITE', 'AV_NOPTS_VALUE', 'AV_LOG_.*'}),
 )
 library;
 
@@ -354,6 +353,7 @@ class Muxer {
       throw _error('Failed to copy $description codec parameters',
           errorCode: errorCode);
     }
+
     if (inputStream.ref.time_base.den == 0) {
       throw _error('Invalid $description time base');
     }
@@ -401,6 +401,10 @@ class Muxer {
     if (errorCode < 0) {
       return false;
     }
+    if (pkt.pkt.ref.pts == AV_NOPTS_VALUE) {
+      log.warning('No PTS for ${pkt.mediaType.description} packet at pos '
+          '${pkt.pkt.ref.pos} bytes');
+    }
     // Rescale does nothing if input and output time bases are the same.
     // In this package, currently, they are, but it's good practice to do it anyway.
     ffmpeg.av_packet_rescale_ts(
@@ -422,8 +426,6 @@ class Muxer {
       'size=${pkt.pkt.ref.size}B',
       '@ ${pkt.scaledPts.toStringAsFixed(2)}s',
     ].join(' '));
-
-    AVERROR_BSF_NOT_FOUND;
 
     // Write the packet ensuring correct interleaving.
     int errorCode = ffmpeg.av_interleaved_write_frame(outputCtx, pkt.pkt);
